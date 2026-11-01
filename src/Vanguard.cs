@@ -337,9 +337,17 @@ namespace VanguardSwitch
             };
             using (var p = Process.Start(psi))
             {
-                string output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
-                p.WaitForExit(30000);
-                return new ScResult { Code = p.ExitCode, Output = output };
+                // read both streams in the background so a hung sc.exe can't block us
+                var stdout = p.StandardOutput.ReadToEndAsync();
+                var stderr = p.StandardError.ReadToEndAsync();
+                if (!p.WaitForExit(30000))
+                {
+                    try { p.Kill(); } catch { }
+                    Log("sc " + string.Join(" ", args) + ": " + L.T("não respondeu em 30 s, encerrado.", "didn't respond in 30 s, killed."));
+                    return new ScResult { Code = -1, Output = "" };
+                }
+                p.WaitForExit();   // lets the async reads finish
+                return new ScResult { Code = p.ExitCode, Output = stdout.Result + stderr.Result };
             }
         }
 
@@ -608,7 +616,7 @@ namespace VanguardSwitch
             if (rep.Tray) Check(true, L.T("Bandeja do Vanguard aberta", "Vanguard tray open"));
             else Log("   [--] " + L.T("Bandeja do Vanguard não abriu (não impede de jogar).", "Vanguard tray did not open (does not block playing)."));
             if (res.LateStart && res.VgkOk)
-                Log("   [!!] " + L.T("O driver não veio do boot: a Riot vai dar VAN 57 até reiniciar.", "The driver did not load at boot: Riot will show VAN 57 until you reboot."));
+                Log("   [!!] " + L.T("O driver não veio do boot: no modo tradicional, isso pode dar VAN 57 até reiniciar.", "The driver did not load at boot: in the traditional mode this can cause VAN 57 until you reboot."));
             return res;
         }
 

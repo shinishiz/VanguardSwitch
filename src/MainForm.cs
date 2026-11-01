@@ -172,21 +172,21 @@ namespace VanguardSwitch
 
         void ShowHelp() => Info(L.T("Como funciona", "How it works"), L.T(
             "O Vanguard tem três partes:\n\n" +
-            "Driver (vgk): roda no núcleo do Windows. A Riot só aceita o driver se ele carregou junto com o PC.\n" +
+            "Driver (vgk): roda no núcleo do Windows. No modo tradicional do Vanguard, ele precisa carregar junto com o PC.\n" +
             "Serviço (vgc): conversa com o jogo.\n" +
             "Ícone da bandeja (vgtray).\n\n" +
             "Desligar fecha a Riot, o serviço e o ícone e impede que eles voltem sozinhos. Com \"Manter o driver carregado\" ligado, só o driver fica na memória, e por isso o Ligar funciona sem reiniciar.\n\n" +
             "Ligar religa o serviço e o ícone e deixa o Vanguard ligando com o Windows de novo.\n\n" +
-            "Erro VAN 57: o driver não carregou junto com o Windows. Reinicie o PC uma vez.\n\n" +
+            "Erro VAN 57: no modo tradicional, ligar o driver depois do boot pode causar esse erro. Reiniciar o PC resolve. (O modo On-Demand oficial da Riot, para PCs que passam no Pre-Check, funciona de outro jeito.)\n\n" +
             "O VanguardSwitch não altera nenhum arquivo do Vanguard. Ele só usa os controles de serviço do próprio Windows.",
 
             "Vanguard has three parts:\n\n" +
-            "Driver (vgk): runs in the Windows kernel. Riot only accepts it if it loaded when the PC started.\n" +
+            "Driver (vgk): runs in the Windows kernel. In Vanguard's traditional mode it needs to load when the PC starts.\n" +
             "Service (vgc): talks to the game.\n" +
             "Tray icon (vgtray).\n\n" +
             "Turn off closes Riot, the service and the tray icon and stops them from coming back on their own. With \"Keep the driver loaded\" on, only the driver stays in memory, which is why Turn on works without a restart.\n\n" +
             "Turn on starts the service and the tray icon again and sets Vanguard to start with Windows.\n\n" +
-            "Error VAN 57: the driver didn't load when Windows started. Restart once.\n\n" +
+            "Error VAN 57: in the traditional mode, starting the driver after boot can cause it. Restarting fixes it. (Riot's official On-Demand mode, for PCs that pass Pre-Check, works differently.)\n\n" +
             "VanguardSwitch doesn't change any Vanguard file. It only uses Windows' own service controls."));
 
         // ---------- helpers ----------
@@ -300,8 +300,8 @@ namespace VanguardSwitch
                     L.T("Ele vem junto com o VALORANT e o League of Legends.", "It comes with VALORANT and League of Legends."), true);
             else if (r.VgkLoaded && r.VgkFromBoot == false && !vgkBlocked)
                 ShowState(Theme.Amber, L.T("Reinicie para jogar", "Restart to play"),
-                    L.T("O driver foi ligado depois que o Windows iniciou, e a Riot só aceita o driver carregado no boot (erro VAN 57).",
-                        "The driver was started after Windows booted, and Riot only accepts it if it loaded at boot (error VAN 57)."), true);
+                    L.T("O driver foi ligado depois que o Windows iniciou. No modo tradicional do Vanguard, isso pode causar o erro VAN 57.",
+                        "The driver was started after Windows booted. In Vanguard's traditional mode this can cause error VAN 57."), true);
             else if (r.VgkLoaded && !vgcBlocked && !vgkBlocked)
                 ShowState(Theme.Green, L.T("O Vanguard está ligado", "Vanguard is on"),
                     L.T("Você já pode jogar. Quando terminar, clique em Desligar Vanguard.", "You can play now. When you're done, click Turn Vanguard off."), false);
@@ -341,7 +341,7 @@ namespace VanguardSwitch
             Row bootRow;
             if (!r.VgkLoaded) bootRow = new Row { Value = "-", ValueColor = Theme.Muted };
             else if (r.VgkFromBoot == true) bootRow = new Row { Value = L.T("Sim", "Yes"), ValueColor = Theme.GreenText };
-            else if (r.VgkFromBoot == false) bootRow = new Row { Value = L.T("Não (dá erro VAN 57)", "No (causes VAN 57)"), ValueColor = Theme.RedText };
+            else if (r.VgkFromBoot == false) bootRow = new Row { Value = L.T("Não (pode dar VAN 57)", "No (may cause VAN 57)"), ValueColor = Theme.RedText };
             else bootRow = new Row { Value = L.T("Não dá para saber", "Unknown"), ValueColor = Theme.Muted };
             bootRow.Label = L.T("Driver carregou no boot", "Driver loaded at boot");
 
@@ -417,8 +417,8 @@ namespace VanguardSwitch
                 if (!res.VgkOk || res.LateStart)
                 {
                     string why = res.VgkOk
-                        ? L.T("O driver ligou agora, mas não junto com o Windows, então a Riot vai mostrar o erro VAN 57.",
-                              "The driver started now, not with Windows, so Riot will show error VAN 57.")
+                        ? L.T("O driver ligou agora, mas não junto com o Windows. No modo tradicional do Vanguard, isso pode causar o erro VAN 57.",
+                              "The driver started now, not with Windows. In Vanguard's traditional mode this can cause error VAN 57.")
                         : L.T("O driver do Vanguard não ligou sem reiniciar.", "The Vanguard driver didn't start without a restart.");
                     if (Ask(L.T("Reiniciar o PC?", "Restart the PC?"), why + L.T("\n\nO Vanguard já vai ligar com o Windows. Reiniciar o PC agora?",
                                       "\n\nVanguard is set to start with Windows. Restart now?")) == DialogResult.Yes)
@@ -474,7 +474,7 @@ namespace VanguardSwitch
             AppendLog(L.T("Abrindo o Riot Client: ", "Opening Riot Client: ") + exe);
             try { Vg.StartAsUser(exe); } catch { }
 
-            // check it opened; if explorer failed, start it directly
+            // check it opened
             bool opened = await Task.Run(() =>
             {
                 var limit = DateTime.Now.AddSeconds(8);
@@ -487,9 +487,11 @@ namespace VanguardSwitch
             });
             if (opened) return;
 
-            AppendLog(L.T("O explorer não abriu o Riot Client. Abrindo direto.", "explorer didn't open Riot Client. Starting it directly."));
-            try { Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = Path.GetDirectoryName(exe) }); }
-            catch (Exception ex) { Warn("Erro/Error: " + ex.Message); }
+            // Not started directly on purpose: this app runs as admin and Riot Client shouldn't.
+            Warn(L.T("O Riot Client não abriu pelo explorer.", "Riot Client didn't open through explorer."));
+            Info(L.T("Riot Client não abriu", "Riot Client didn't open"),
+                 L.T("Não consegui abrir o Riot Client como usuário normal. Abra pelo atalho da área de trabalho ou do menu Iniciar.",
+                     "Couldn't open Riot Client as a normal user. Open it from its desktop or Start menu shortcut."));
         }
     }
 }
