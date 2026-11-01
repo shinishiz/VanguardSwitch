@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Version from tag
+        shell: pwsh
+        run: |
+          $v = '1.0.0'
+          if ($env:GITHUB_REF -like 'refs/tags/v*') { $v = $env:GITHUB_REF_NAME.TrimStart('v') }
+          "VERSION=$v" >> $env:GITHUB_ENV
+
+      - name: Build
+        run: dotnet build src/VanguardSwitch.csproj -c Release -o out -p:Version=${{ env.VERSION }}
+
+      - name: SHA-256
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash out/VanguardSwitch.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  VanguardSwitch.exe" | Out-File out/VanguardSwitch.exe.sha256 -Encoding ascii
+          "SHA-256: ``$h``" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VanguardSwitch
+          path: |
+            out/VanguardSwitch.exe
+            out/VanguardSwitch.exe.sha256
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/VanguardSwitch.exe
+            out/VanguardSwitch.exe.sha256
+          generate_release_notes: true
