@@ -295,7 +295,7 @@ namespace VanguardSwitch
                 if (Dialog.Choose(this, L.T("Não deu para atualizar", "Update failed"),
                         ex.Message + L.T("\n\nVocê pode baixar a nova versão pela página da release.", "\n\nYou can download it from the release page."),
                         L.T("Abrir página", "Open page"), L.T("Fechar", "Close")) == DialogResult.Yes)
-                    try { Process.Start(rel.Page); } catch { }
+                    try { Vg.StartAsUser(rel.Page); } catch { }   // not elevated, like Riot Client
                 RefreshStatus();
             }
         }
@@ -510,27 +510,32 @@ namespace VanguardSwitch
                          "Riot Client not found.\nExpected at: C:\\Riot Games\\Riot Client\\RiotClientServices.exe"));
                 return;
             }
-            if (!quiet)
+            bool opened;
+            try
             {
-                bool off = await Task.Run(() => !Vg.VgkLoaded() || Vg.StartType("vgc") == 4);
-                if (off && Ask(L.T("Vanguard desligado", "Vanguard is off"), L.T("O Vanguard está desligado, então VALORANT e LoL não vão abrir.\n\nAbrir o Riot Client mesmo assim?",
-                                   "Vanguard is off, so VALORANT and LoL won't launch.\n\nOpen Riot Client anyway?")) != DialogResult.Yes) return;
-            }
-
-            AppendLog(L.T("Abrindo o Riot Client: ", "Opening Riot Client: ") + exe);
-            try { Vg.StartAsUser(exe); } catch { }
-
-            // check it opened
-            bool opened = await Task.Run(() =>
-            {
-                var limit = DateTime.Now.AddSeconds(8);
-                while (DateTime.Now < limit)
+                if (!quiet)
                 {
-                    if (Vg.ClientNames.Any(n => Process.GetProcessesByName(n).Length > 0)) return true;
-                    System.Threading.Thread.Sleep(400);
+                    bool off = await Task.Run(() => !Vg.VgkLoaded() || Vg.StartType("vgc") == 4);
+                    if (off && Ask(L.T("Vanguard desligado", "Vanguard is off"), L.T("O Vanguard está desligado, então VALORANT e LoL não vão abrir.\n\nAbrir o Riot Client mesmo assim?",
+                                       "Vanguard is off, so VALORANT and LoL won't launch.\n\nOpen Riot Client anyway?")) != DialogResult.Yes) return;
                 }
-                return false;
-            });
+
+                AppendLog(L.T("Abrindo o Riot Client: ", "Opening Riot Client: ") + exe);
+                try { Vg.StartAsUser(exe); } catch { }
+
+                // check it opened
+                opened = await Task.Run(() =>
+                {
+                    var limit = DateTime.Now.AddSeconds(8);
+                    while (DateTime.Now < limit)
+                    {
+                        if (Vg.ClientNames.Any(n => Process.GetProcessesByName(n).Length > 0)) return true;
+                        System.Threading.Thread.Sleep(400);
+                    }
+                    return false;
+                });
+            }
+            catch (Exception ex) { Warn("Erro/Error: " + ex.Message); return; }
             if (opened) return;
 
             // Not started directly on purpose: this app runs as admin and Riot Client shouldn't.

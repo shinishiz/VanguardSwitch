@@ -225,8 +225,12 @@ namespace VanguardSwitch
         /// </summary>
         static bool SignedByRiot(string path)
         {
+            // keyed by path + last write, so a file Riot updates (or one that was busy) is checked again
+            string key;
+            try { key = path + "|" + File.GetLastWriteTimeUtc(path).Ticks; }
+            catch { return false; }
             lock (signedCache)
-                if (signedCache.TryGetValue(path, out bool cached)) return cached;
+                if (signedCache.TryGetValue(key, out bool cached)) return cached;
             bool ok = false;
             try
             {
@@ -239,7 +243,7 @@ namespace VanguardSwitch
                 }
             }
             catch { ok = false; }
-            lock (signedCache) signedCache[path] = ok;
+            lock (signedCache) signedCache[key] = ok;
             return ok;
         }
 

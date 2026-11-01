@@ -7,6 +7,9 @@
 - The window only says "Vanguard is on" when the `vgc` service was found and read. A missing service or an
   incomplete read now gets its own message instead.
 - Release notes come from this changelog.
+- The release page link (shown when an update fails) opens the browser as a normal user, not as admin.
+- The signature check is redone when a Riot file changes, instead of being remembered until the app closes.
+- README: restart, don't shut down, to fix VAN 57 (Fast Startup doesn't reload drivers).
 
 ## v1.0.4
 

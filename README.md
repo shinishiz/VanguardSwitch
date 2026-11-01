@@ -79,7 +79,8 @@ step after you click. Text is in English or Portuguese, following your Windows l
 ### Error VAN 57
 
 In Vanguard's traditional mode (without On-Demand), starting `vgk` after Windows booted can cause VAN 57.
-Reboot once and keep *Keep the driver loaded* checked from then on.
+Restart once and keep *Keep the driver loaded* checked from then on. Use **Restart**, not Shut down: with
+Windows Fast Startup on, shutting down and turning the PC back on doesn't reload drivers.
 
 The *Driver loaded at boot* row tries to warn you before you open the game. It compares the time of
 Vanguard's own driver log (`Logs\vgk_*.log`) with the time Windows started, and also remembers when the
@@ -158,7 +159,8 @@ SmartScreen avisar, clique em **Mais informações → Executar assim mesmo**.
   "Ligar" funciona sem reiniciar.
 
 **Erro VAN 57:** no modo tradicional do Vanguard (sem On-Demand), ligar o driver depois do boot pode causar
-esse erro. Reinicie o PC uma vez e deixe a opção marcada.
+esse erro. Reinicie o PC uma vez e deixe a opção marcada. Use **Reiniciar**, não Desligar: com a
+Inicialização Rápida do Windows ligada, desligar e ligar o PC não recarrega os drivers.
 A linha *Driver carregou no boot* tenta avisar isso antes de abrir o jogo, comparando o horário do log do
 driver com o horário em que o Windows ligou. É uma estimativa, não a checagem da Riot: relógio alterado,
 log faltando ou mudança no formato dos logs podem enganar (aí aparece *Não dá para saber*), e ela só pega
