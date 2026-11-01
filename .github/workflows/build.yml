@@ -36,6 +36,20 @@ jobs:
       - name: Build
         run: dotnet build src/VanguardSwitch.csproj -c Release -o out -p:Version=${{ env.VERSION }}
 
+      # mocks only: the updater's refusals and the window's states, nothing touches Vanguard
+      - name: Simulated tests
+        shell: pwsh
+        run: |
+          dotnet build tests/Simulated/Simulated.csproj -c Release -o tests/Simulated/bin/out
+          tests/Simulated/bin/out/Simulated.exe "$env:RUNNER_TEMP/simulated"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulated-screenshots
+          path: ${{ runner.temp }}/simulated/*.png
+          if-no-files-found: ignore
+
       - name: SHA-256
         shell: pwsh
         run: |

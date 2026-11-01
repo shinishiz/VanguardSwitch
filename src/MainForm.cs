@@ -177,7 +177,7 @@ namespace VanguardSwitch
             "Ícone da bandeja (vgtray).\n\n" +
             "Desligar fecha a Riot, o serviço e o ícone e impede que eles voltem sozinhos. Com \"Manter o driver carregado\" ligado, só o driver fica na memória, e por isso o Ligar funciona sem reiniciar.\n\n" +
             "Ligar religa o serviço e o ícone e deixa o Vanguard ligando com o Windows de novo.\n\n" +
-            "Erro VAN 57: no modo tradicional, ligar o driver depois do boot pode causar esse erro. Reiniciar o PC resolve. (O modo On-Demand oficial da Riot, para PCs que passam no Pre-Check, funciona de outro jeito.)\n\n" +
+            "Erro VAN\u00A057: no modo tradicional, ligar o driver depois do boot pode causar esse erro. Reiniciar o PC resolve. (O modo On-Demand oficial da Riot, para PCs que passam no Pre-Check, funciona de outro jeito.)\n\n" +
             "O VanguardSwitch não altera nenhum arquivo do Vanguard. Ele só usa os controles de serviço do próprio Windows.",
 
             "Vanguard has three parts:\n\n" +
@@ -186,7 +186,7 @@ namespace VanguardSwitch
             "Tray icon (vgtray).\n\n" +
             "Turn off closes Riot, the service and the tray icon and stops them from coming back on their own. With \"Keep the driver loaded\" on, only the driver stays in memory, which is why Turn on works without a restart.\n\n" +
             "Turn on starts the service and the tray icon again and sets Vanguard to start with Windows.\n\n" +
-            "Error VAN 57: in the traditional mode, starting the driver after boot can cause it. Restarting fixes it. (Riot's official On-Demand mode, for PCs that pass Pre-Check, works differently.)\n\n" +
+            "Error VAN\u00A057: in the traditional mode, starting the driver after boot can cause it. Restarting fixes it. (Riot's official On-Demand mode, for PCs that pass Pre-Check, works differently.)\n\n" +
             "VanguardSwitch doesn't change any Vanguard file. It only uses Windows' own service controls."));
 
         // ---------- helpers ----------
@@ -327,8 +327,8 @@ namespace VanguardSwitch
                         "Some service information couldn't be read. The app tries again in a few seconds."), null);
             else if (r.VgkLoaded && r.VgkFromBoot == false && !vgkBlocked)
                 ShowState(Theme.Amber, L.T("Reinicie para jogar", "Restart to play"),
-                    L.T("O driver foi ligado depois que o Windows iniciou. No modo tradicional do Vanguard, isso pode causar o erro VAN 57.",
-                        "The driver was started after Windows booted. In Vanguard's traditional mode this can cause error VAN 57."), true);
+                    L.T("O driver foi ligado depois que o Windows iniciou. No modo tradicional do Vanguard, isso pode causar o erro VAN\u00A057.",
+                        "The driver was started after Windows booted. In Vanguard's traditional mode this can cause error VAN\u00A057."), true);
             else if (r.VgkLoaded && !vgcBlocked && !vgkBlocked)
                 ShowState(Theme.Green, L.T("O Vanguard está ligado", "Vanguard is on"),
                     L.T("Você já pode jogar. Quando terminar, clique em Desligar Vanguard.", "You can play now. When you're done, click Turn Vanguard off."), false);
@@ -352,7 +352,8 @@ namespace VanguardSwitch
 
             Row vgc;
             if (r.VgcSvc == "Running") vgc = new Row { Value = L.T("Rodando", "Running"), ValueColor = Theme.GreenText };
-            else if (r.VgcSvc == null) vgc = new Row { Value = L.T("Não encontrado", "Not found"), ValueColor = Theme.Muted };
+            else if (r.VgcSvc == null && r.VgcStart == null) vgc = new Row { Value = L.T("Não encontrado", "Not found"), ValueColor = Theme.Muted };
+            else if (r.VgcSvc == null) vgc = new Row { Value = L.T("Não deu para ler", "Couldn't read"), ValueColor = Theme.Amber };
             else if (vgcBlocked) vgc = new Row { Value = L.T("Parado e bloqueado", "Stopped and blocked"), ValueColor = Theme.RedText };
             else vgc = new Row { Value = L.T("Parado", "Stopped"), ValueColor = Theme.Muted };
             vgc.Label = L.T("Serviço (vgc)", "Service (vgc)");
@@ -368,7 +369,7 @@ namespace VanguardSwitch
             Row bootRow;
             if (!r.VgkLoaded) bootRow = new Row { Value = "-", ValueColor = Theme.Muted };
             else if (r.VgkFromBoot == true) bootRow = new Row { Value = L.T("Sim", "Yes"), ValueColor = Theme.GreenText };
-            else if (r.VgkFromBoot == false) bootRow = new Row { Value = L.T("Não (pode dar VAN 57)", "No (may cause VAN 57)"), ValueColor = Theme.RedText };
+            else if (r.VgkFromBoot == false) bootRow = new Row { Value = L.T("Não (pode dar VAN\u00A057)", "No (may cause VAN\u00A057)"), ValueColor = Theme.RedText };
             else bootRow = new Row { Value = L.T("Não dá para saber", "Unknown"), ValueColor = Theme.Muted };
             bootRow.Label = L.T("Driver carregou no boot", "Driver loaded at boot");
 
@@ -378,7 +379,8 @@ namespace VanguardSwitch
                 bootRow,
                 vgc,
                 new Row { Label = L.T("Ícone da bandeja", "Tray icon"), Value = r.Tray ? L.T("Aberto", "Open") : L.T("Fechado", "Closed"), ValueColor = r.Tray ? Theme.GreenText : Theme.Muted },
-                new Row { Label = L.T("Riot Client e jogos", "Riot Client and games"), Value = riot == 0 ? L.T("Fechados", "Closed") : $"{riot} {L.T("abertos", "running")}", ValueColor = riot == 0 ? Theme.Muted : Theme.GreenText },
+                // counts processes (Riot Client alone runs several), not programs; vgc and vgtray have their own rows
+                new Row { Label = L.T("Processos da Riot em execução", "Riot processes running"), Value = riot == 0 ? L.T("Nenhum", "None") : riot.ToString(), ValueColor = riot == 0 ? Theme.Muted : Theme.GreenText },
                 boot,
             };
             parts.Invalidate();
@@ -430,6 +432,16 @@ namespace VanguardSwitch
             finally { SetBusy(false); RefreshStatus(); }
         }
 
+        /// <summary>First part of the "Restart the PC?" question after Turn on. "VAN\u00A057" uses a no-break space so it doesn't split across lines.</summary>
+        internal static string RestartReason(StartResult res) =>
+            !res.VgkOk
+                ? L.T("O driver do Vanguard não ligou sem reiniciar.", "The Vanguard driver didn't start without a restart.")
+            : res.StartedNow
+                ? L.T("O driver ligou agora, mas não junto com o Windows. No modo tradicional do Vanguard, isso pode causar o erro VAN\u00A057.",
+                      "The driver started now, not with Windows. In Vanguard's traditional mode this can cause error VAN\u00A057.")
+                : L.T("O driver já estava na memória, mas foi ligado depois que o Windows iniciou. No modo tradicional do Vanguard, isso pode causar o erro VAN\u00A057.",
+                      "The driver was already in memory, but it was started after Windows booted. In Vanguard's traditional mode this can cause error VAN\u00A057.");
+
         async void OnTurnOn(object sender, EventArgs e)
         {
             if (busy) return;
@@ -447,11 +459,7 @@ namespace VanguardSwitch
 
                 if (!res.VgkOk || res.LateStart)
                 {
-                    string why = res.VgkOk
-                        ? L.T("O driver ligou agora, mas não junto com o Windows. No modo tradicional do Vanguard, isso pode causar o erro VAN 57.",
-                              "The driver started now, not with Windows. In Vanguard's traditional mode this can cause error VAN 57.")
-                        : L.T("O driver do Vanguard não ligou sem reiniciar.", "The Vanguard driver didn't start without a restart.");
-                    if (Ask(L.T("Reiniciar o PC?", "Restart the PC?"), why + L.T("\n\nO Vanguard já vai ligar com o Windows. Reiniciar o PC agora?",
+                    if (Ask(L.T("Reiniciar o PC?", "Restart the PC?"), RestartReason(res) + L.T("\n\nO Vanguard já vai ligar com o Windows. Reiniciar o PC agora?",
                                       "\n\nVanguard is set to start with Windows. Restart now?")) == DialogResult.Yes)
                         Vg.Reboot("VanguardSwitch");
                 }

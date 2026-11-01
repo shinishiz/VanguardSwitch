@@ -58,7 +58,8 @@ namespace VanguardSwitch
     class StartResult
     {
         public bool VgkOk;
-        public bool LateStart;   // the driver was started now, not at boot: Riot answers with VAN 57
+        public bool LateStart;   // the driver didn't load at boot: Riot answers with VAN 57
+        public bool StartedNow;  // ...and it was this Turn on that started it (otherwise it was already in memory)
     }
 
     /// <summary>
@@ -653,6 +654,7 @@ namespace VanguardSwitch
             if (!VgkLoaded())
             {
                 res.LateStart = true;
+                res.StartedNow = true;
                 var r = Sc("start", "vgk");
                 MarkVgkTouched();
                 Log(WaitStatus("vgk", "Running", 15) ? "vgk: " + L.T("driver ligado agora (não veio do boot).", "driver started now (not from boot).")
@@ -684,7 +686,7 @@ namespace VanguardSwitch
             if (rep.Tray) Check(true, L.T("Bandeja do Vanguard aberta", "Vanguard tray open"));
             else Log("   [--] " + L.T("Bandeja do Vanguard não abriu (não impede de jogar).", "Vanguard tray did not open (does not block playing)."));
             if (res.LateStart && res.VgkOk)
-                Log("   [!!] " + L.T("O driver não veio do boot: no modo tradicional, isso pode dar VAN 57 até reiniciar.", "The driver did not load at boot: in the traditional mode this can cause VAN 57 until you reboot."));
+                Log("   [!!] " + L.T("O driver não veio do boot: no modo tradicional, isso pode dar VAN\u00A057 até reiniciar.", "The driver did not load at boot: in the traditional mode this can cause VAN\u00A057 until you reboot."));
             return res;
         }
 

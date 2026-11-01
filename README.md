@@ -117,6 +117,25 @@ dotnet build src/VanguardSwitch.csproj -c Release
 
 Works on Windows or Linux with the .NET 8 SDK. The app targets .NET Framework 4.8, which ships with Windows 10 and 11.
 
+## Testing
+
+v1.0.5 was tested by hand on a real PC, with every result checked outside the app. Steps, evidence and the
+issues found (fixed in v1.0.6) are in [TESTING.md](TESTING.md).
+
+| | Result |
+| --- | --- |
+| Windows | 10 Pro 22H2 (build 19045), Portuguese, traditional Vanguard mode |
+| Games | VALORANT and League of Legends got into a match (short sessions, not full matches) |
+| Turn off keeping the driver → Turn on | Passed, no restart, 4 cycles in a row |
+| Full turn off → Turn on | Passed: the VAN 57 warning appeared, and VALORANT really gave VAN 57 |
+| After a restart | Passed: driver loaded at boot, games worked. Also with `vgc` blocked at boot |
+| Update | Passed, 1.0.4 → 1.0.5 |
+| Screen scale | 100% passed. 125%, 150% and 200% not tested yet |
+| Not tested | Windows 11, English UI, *Riot default and restart* with the real restart, a driver that won't unload |
+
+`tests/Simulated` also checks the updater's refusals and the window's states with made-up data, without
+touching Vanguard. It runs on every build.
+
 ## Disclaimer
 
 Not affiliated with Riot Games. Riot Vanguard, VALORANT and League of Legends are trademarks of
@@ -169,5 +188,11 @@ essa causa do VAN 57, não todas.
 **Atualizações:** ao abrir, o app confere no GitHub se saiu versão nova e mostra **Atualizar** ou
 **Fechar**. Atualizar baixa o exe e o `.sha256` da release, recusa instalar se o hash faltar ou não bater,
 troca o arquivo e abre de novo. O app só acessa a rede pela API do GitHub e pelos downloads das releases.
+
+**Testes:** a v1.0.5 foi testada à mão em um PC com Windows 10 22H2 (escala 100%), Vanguard no modo
+tradicional, VALORANT e League of Legends: desligar mantendo o driver, desligamento completo (o aviso de
+VAN 57 apareceu e o erro aconteceu mesmo), reinício e atualização passaram. Escalas 125%, 150% e 200%,
+Windows 11 e a interface em inglês ainda não foram testados. Tabela na seção *Testing* acima e detalhes em
+[TESTING.md](TESTING.md) (em inglês).
 
 O programa não altera nenhum arquivo do Vanguard. Sem vínculo com a Riot Games.

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.0.6
+
+- Tested by hand on a real PC: see the *Testing* table in the README and [TESTING.md](TESTING.md).
+- Fixes from that session:
+  - The "Restart the PC?" question after Turn on now says whether the driver was started just now or was
+    already in memory (started after boot).
+  - The "Riot Client and games" row is now "Riot processes running" and shows the number, since Riot Client
+    alone runs several processes.
+  - "VAN 57" no longer breaks across two lines.
+  - The service row says "Couldn't read" instead of "Not found" when the service exists but its status
+    can't be read.
+- `tests/Simulated`: checks the updater's refusals and the window's states without touching Vanguard. It
+  runs in GitHub Actions on every build.
+
 ## v1.0.5
 
 - Turn off locks the buttons before checking for open games, so a second click can't start another action
