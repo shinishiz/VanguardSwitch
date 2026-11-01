@@ -207,9 +207,21 @@ namespace VanguardSwitch
             if (on) ShowState(Theme.Dim, L.T("Aguarde...", "Working..."), what, null);
         }
 
-        DialogResult Ask(string title, string text, Color? accent = null) => Dialog.Ask(this, title, text, accent);
+        int dialogs;   // dialogs currently open (the update notice waits for them)
 
-        void Info(string title, string text) => Dialog.Info(this, title, text);
+        DialogResult Ask(string title, string text, Color? accent = null)
+        {
+            dialogs++;
+            try { return Dialog.Ask(this, title, text, accent); }
+            finally { dialogs--; }
+        }
+
+        void Info(string title, string text)
+        {
+            dialogs++;
+            try { Dialog.Info(this, title, text); }
+            finally { dialogs--; }
+        }
 
         // ---------- status ----------
 
@@ -254,14 +266,21 @@ namespace VanguardSwitch
         {
             var rel = await Task.Run(Updater.Check);
             if (rel == null || IsDisposed) return;
-            while (busy) await Task.Delay(1000);   // don't interrupt a Turn on/off in progress
+            while (busy || dialogs > 0) await Task.Delay(1000);   // don't interrupt an action or an open question
+            if (IsDisposed) return;
 
             AppendLog(L.T($"Nova versão disponível: v{rel.Version}.", $"New version available: v{rel.Version}."));
-            if (Dialog.Choose(this, L.T("Nova versão disponível", "Update available"),
+            busy = true;   // nothing else starts while the notice is open
+            DialogResult answer;
+            try
+            {
+                answer = Dialog.Choose(this, L.T("Nova versão disponível", "Update available"),
                     L.T($"A versão {rel.Version} do VanguardSwitch saiu (você tem a {Updater.Current}).\n\nAtualizar agora? O app baixa a nova versão do GitHub, confere o arquivo e abre de novo sozinho.",
                         $"VanguardSwitch {rel.Version} is out (you have {Updater.Current}).\n\nUpdate now? The app downloads the new version from GitHub, checks the file and reopens by itself."),
-                    L.T("Atualizar", "Update"), L.T("Fechar", "Close")) != DialogResult.Yes)
-                return;
+                    L.T("Atualizar", "Update"), L.T("Fechar", "Close"));
+            }
+            finally { busy = false; }
+            if (answer != DialogResult.Yes) return;
 
             SetBusy(true, L.T($"Baixando a versão {rel.Version}.", $"Downloading version {rel.Version}."));
             try
@@ -298,6 +317,14 @@ namespace VanguardSwitch
             if (!r.Installed)
                 ShowState(Theme.Dim, L.T("O Vanguard não está instalado", "Vanguard isn't installed"),
                     L.T("Ele vem junto com o VALORANT e o League of Legends.", "It comes with VALORANT and League of Legends."), true);
+            else if (r.VgcStart == null && r.VgcSvc == null)
+                ShowState(Theme.Amber, L.T("Serviço do Vanguard não encontrado", "Vanguard service not found"),
+                    L.T("O driver está instalado, mas o serviço vgc não. Abra o Riot Client para ele reparar o Vanguard.",
+                        "The driver is installed but the vgc service isn't. Open Riot Client so it can repair Vanguard."), null);
+            else if (r.VgkStart == null || r.VgcStart == null || r.VgcSvc == null)
+                ShowState(Theme.Amber, L.T("Não deu para confirmar o estado", "Couldn't confirm the state"),
+                    L.T("Parte das informações dos serviços não pôde ser lida. O app tenta de novo em alguns segundos.",
+                        "Some service information couldn't be read. The app tries again in a few seconds."), null);
             else if (r.VgkLoaded && r.VgkFromBoot == false && !vgkBlocked)
                 ShowState(Theme.Amber, L.T("Reinicie para jogar", "Restart to play"),
                     L.T("O driver foi ligado depois que o Windows iniciou. No modo tradicional do Vanguard, isso pode causar o erro VAN 57.",
@@ -374,15 +401,17 @@ namespace VanguardSwitch
         async void OnTurnOff(object sender, EventArgs e)
         {
             if (busy) return;
-            List<RiotProc> playing;
-            try { playing = await Task.Run(() => Vg.RiotProcesses(false).Where(p => Vg.GameNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)).ToList()); }
-            catch (Exception ex) { Warn("Erro/Error: " + ex.Message); playing = new List<RiotProc>(); }
-            if (playing.Count > 0 && Ask(L.T("Jogo aberto", "Game running"), L.T($"Tem um jogo da Riot aberto ({playing[0].Name}). Fechar mesmo assim?",
-                                             $"A Riot game is running ({playing[0].Name}). Close it anyway?"), Theme.Red) != DialogResult.Yes) return;
-
-            SetBusy(true, L.T("Fechando a Riot e desligando o Vanguard.", "Closing Riot and turning Vanguard off."));
+            // lock the buttons before the first await, so a second click can't start another action
+            SetBusy(true, L.T("Conferindo se tem jogo aberto.", "Checking for running games."));
             try
             {
+                List<RiotProc> playing;
+                try { playing = await Task.Run(() => Vg.RiotProcesses(false).Where(p => Vg.GameNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)).ToList()); }
+                catch (Exception ex) { Warn("Erro/Error: " + ex.Message); playing = new List<RiotProc>(); }
+                if (playing.Count > 0 && Ask(L.T("Jogo aberto", "Game running"), L.T($"Tem um jogo da Riot aberto ({playing[0].Name}). Fechar mesmo assim?",
+                                                 $"A Riot game is running ({playing[0].Name}). Close it anyway?"), Theme.Red) != DialogResult.Yes) return;
+
+                SetBusy(true, L.T("Fechando a Riot e desligando o Vanguard.", "Closing Riot and turning Vanguard off."));
                 bool light = toggle.Checked;
                 var res = await Task.Run(() => Vg.Close(light));
                 watch = light ? Watch.Light : Watch.Off;

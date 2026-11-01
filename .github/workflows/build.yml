@@ -57,13 +57,24 @@ jobs:
     permissions:
       contents: write   # only this job can create the release
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: VanguardSwitch
+          path: out
+
+      # release text = this tag's section of CHANGELOG.md
+      - name: Release notes
+        run: |
+          awk -v tag="## ${GITHUB_REF_NAME}" '$0 == tag {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "CHANGELOG.md has no section for ${GITHUB_REF_NAME}"; exit 1; fi
+          printf '\nCheck the download: `VanguardSwitch.exe.sha256` has its SHA-256.\n' >> notes.md
+          cat notes.md
 
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: notes.md
           files: |
-            VanguardSwitch.exe
-            VanguardSwitch.exe.sha256
-          generate_release_notes: true
+            out/VanguardSwitch.exe
+            out/VanguardSwitch.exe.sha256
