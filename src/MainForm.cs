@@ -374,7 +374,9 @@ namespace VanguardSwitch
         async void OnTurnOff(object sender, EventArgs e)
         {
             if (busy) return;
-            var playing = await Task.Run(() => Vg.RiotProcesses(false).Where(p => Vg.GameNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)).ToList());
+            List<RiotProc> playing;
+            try { playing = await Task.Run(() => Vg.RiotProcesses(false).Where(p => Vg.GameNames.Contains(p.Name, StringComparer.OrdinalIgnoreCase)).ToList()); }
+            catch (Exception ex) { Warn("Erro/Error: " + ex.Message); playing = new List<RiotProc>(); }
             if (playing.Count > 0 && Ask(L.T("Jogo aberto", "Game running"), L.T($"Tem um jogo da Riot aberto ({playing[0].Name}). Fechar mesmo assim?",
                                              $"A Riot game is running ({playing[0].Name}). Close it anyway?"), Theme.Red) != DialogResult.Yes) return;
 
@@ -447,11 +449,23 @@ namespace VanguardSwitch
                 }
                 else
                 {
-                    Warn(L.T("Não deu para restaurar o padrão.", "Couldn't restore the default."));
-                    string what = !res.ConfigOk
-                        ? L.T("Não deu para voltar o driver e o serviço a ligar com o Windows.", "Couldn't set the driver and service to start with Windows.")
-                        : L.T("O driver e o serviço voltaram ao padrão, mas não deu para pôr a bandeja de volta na inicialização.", "The driver and service are back to default, but the tray couldn't be added back to startup.");
-                    Info(L.T("Algo deu errado", "Something went wrong"), what + L.T("\n\nO PC não foi reiniciado. Veja os Logs.", "\n\nThe PC was not restarted. See the Logs."));
+                    if (res.ConfigOk && !res.TrayFound)
+                    {
+                        Warn(L.T("Entrada da bandeja não encontrada.", "Tray entry not found."));
+                        // nothing to restore for the tray; the essential part is done
+                        if (Ask(L.T("Bandeja não encontrada", "Tray entry not found"),
+                                L.T("O driver e o serviço voltaram ao padrão, mas a entrada da bandeja do Vanguard não existe no Registro, então ela não foi restaurada. Reinstalar o Vanguard pelo Riot Client recria ela.\n\nReiniciar o PC mesmo assim?",
+                                    "The driver and service are back to default, but Vanguard's tray entry doesn't exist in the registry, so it wasn't restored. Reinstalling Vanguard from Riot Client recreates it.\n\nRestart the PC anyway?")) == DialogResult.Yes)
+                            Vg.Reboot("VanguardSwitch");
+                    }
+                    else
+                    {
+                        Warn(L.T("Não deu para restaurar o padrão.", "Couldn't restore the default."));
+                        string what = !res.ConfigOk
+                            ? L.T("Não deu para voltar o driver e o serviço a ligar com o Windows.", "Couldn't set the driver and service to start with Windows.")
+                            : L.T("O driver e o serviço voltaram ao padrão, mas não deu para pôr a bandeja de volta na inicialização.", "The driver and service are back to default, but the tray couldn't be added back to startup.");
+                        Info(L.T("Algo deu errado", "Something went wrong"), what + L.T("\n\nO PC não foi reiniciado. Veja os Logs.", "\n\nThe PC was not restarted. See the Logs."));
+                    }
                 }
             }
             catch (Exception ex) { Warn("Erro/Error: " + ex.Message); }

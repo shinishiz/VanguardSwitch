@@ -20,9 +20,16 @@ namespace VanguardSwitch
     class RestoreResult
     {
         public bool ConfigOk;     // vgk and vgc start types are back
-        public bool TrayOk;       // tray set to open with Windows
+        public bool TrayFound;    // Vanguard's tray startup entry exists
+        public bool TrayOk;       // ...and it was set to open with Windows
         public bool VgcRunning;   // only informative: the PC restarts right after
-        public bool Ok => ConfigOk && TrayOk;
+        public bool Ok => ConfigOk && TrayFound && TrayOk;
+    }
+
+    class TrayChange
+    {
+        public int Found, Failed;
+        public bool Ok => Found > 0 && Failed == 0;
     }
 
     class Report
@@ -212,17 +219,24 @@ namespace VanguardSwitch
 
         static readonly Dictionary<string, bool> signedCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>True if the file carries an Authenticode signature issued to Riot Games.</summary>
+        /// <summary>
+        /// True if the file has a valid, trusted Authenticode signature (WinVerifyTrust) and the signer's
+        /// name is Riot Games. The name is only read after Windows has accepted the signature.
+        /// </summary>
         static bool SignedByRiot(string path)
         {
             lock (signedCache)
                 if (signedCache.TryGetValue(path, out bool cached)) return cached;
-            bool ok;
+            bool ok = false;
             try
             {
-                var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(path);
-                ok = cert.Subject.IndexOf("O=Riot Games", StringComparison.OrdinalIgnoreCase) >= 0
-                  || cert.Subject.IndexOf("CN=Riot Games", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (Native.AuthenticodeValid(path))
+                {
+                    var cert = new System.Security.Cryptography.X509Certificates.X509Certificate2(
+                        System.Security.Cryptography.X509Certificates.X509Certificate.CreateFromSignedFile(path));
+                    string cn = cert.GetNameInfo(System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false) ?? "";
+                    ok = cn.StartsWith("Riot Games", StringComparison.OrdinalIgnoreCase);
+                }
             }
             catch { ok = false; }
             lock (signedCache) signedCache[path] = ok;
@@ -230,17 +244,17 @@ namespace VanguardSwitch
         }
 
         /// <summary>
-        /// A process counts as Riot's only if its exe is inside a Riot folder, or it has a Riot process name
-        /// AND its exe is signed by Riot Games (games can be installed anywhere). When the path can't be read
-        /// (protected process), the name alone is used.
+        /// A process counts as Riot's if it has a Riot process name or runs from a Riot folder, AND its exe
+        /// has a valid signature from Riot Games. When the path can't be read (protected process), the
+        /// name alone is used.
         /// </summary>
         static bool IsRiot(int pid, string name)
         {
             var path = Native.ProcessPath(pid);
             bool knownName = RiotNames.Contains(name, StringComparer.OrdinalIgnoreCase);
             if (path == null) return knownName;
-            if (PathHints.Any(h => path.IndexOf(h, StringComparison.OrdinalIgnoreCase) >= 0)) return true;
-            return knownName && SignedByRiot(path);
+            bool riotFolder = PathHints.Any(h => path.IndexOf(h, StringComparison.OrdinalIgnoreCase) >= 0);
+            return (knownName || riotFolder) && SignedByRiot(path);
         }
 
         public static List<RiotProc> RiotProcesses(bool includeVgc)
@@ -250,9 +264,13 @@ namespace VanguardSwitch
             {
                 using (p)
                 {
-                    string name = p.ProcessName;
-                    if (!includeVgc && name.Equals("vgc", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (IsRiot(p.Id, name)) list.Add(new RiotProc { Id = p.Id, Name = name });
+                    try
+                    {
+                        string name = p.ProcessName;   // throws if the process already exited
+                        if (!includeVgc && name.Equals("vgc", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (IsRiot(p.Id, name)) list.Add(new RiotProc { Id = p.Id, Name = name });
+                    }
+                    catch { }
                 }
             }
             return list;
@@ -433,14 +451,15 @@ namespace VanguardSwitch
             return killed.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
 
-        /// <summary>False if any tray startup entry couldn't be changed.</summary>
-        public static bool SetTrayStartup(bool enabled)
+        /// <summary>How many tray startup entries were found and how many couldn't be changed.</summary>
+        public static TrayChange SetTrayStartup(bool enabled)
         {
             // first byte: 2 = enabled, 3 = disabled (same format as Task Manager)
             var bytes = new byte[12];
             bytes[0] = (byte)(enabled ? 2 : 3);
-            bool ok = true;
+            var res = new TrayChange();
             var entries = TrayRunEntries().ToList();
+            res.Found = entries.Count;
             if (entries.Count == 0) Log(L.T("Bandeja: nenhuma entrada de inicialização do Vanguard encontrada.", "Tray: no Vanguard startup entry found."));
             foreach (var e in entries)
             {
@@ -451,9 +470,9 @@ namespace VanguardSwitch
                     Log(enabled ? L.T("Bandeja do Vanguard volta a abrir com o Windows.", "Vanguard tray opens with Windows again.")
                                 : L.T("Bandeja do Vanguard não abre mais com o Windows.", "Vanguard tray no longer opens with Windows."));
                 }
-                catch (Exception ex) { ok = false; Log(L.T("Não deu para mudar a bandeja: ", "Could not change the tray: ") + ex.Message); }
+                catch (Exception ex) { res.Failed++; Log(L.T("Não deu para mudar a bandeja: ", "Could not change the tray: ") + ex.Message); }
             }
-            return ok;
+            return res;
         }
 
         /// <summary>Starts a program as the normal user (not admin) by handing it to explorer.exe.</summary>
@@ -673,12 +692,15 @@ namespace VanguardSwitch
             int vgk = OriginalVgkStart();
             SetStartType("vgk", vgk);
             SetStartType("vgc", 2);
-            res.TrayOk = SetTrayStartup(true);
+            var tray = SetTrayStartup(true);
+            res.TrayFound = tray.Found > 0;
+            res.TrayOk = tray.Ok;
 
             Log(L.T("Conferência:", "Check:"));
             res.ConfigOk = Check(StartType("vgk") == vgk && StartType("vgc") == 2,
                                  L.T("vgk e vgc voltaram a ligar com o Windows", "vgk and vgc start with Windows again"));
-            Check(res.TrayOk, L.T("Bandeja volta a abrir com o Windows", "Tray opens with Windows again"));
+            if (res.TrayFound) Check(res.TrayOk, L.T("Bandeja volta a abrir com o Windows", "Tray opens with Windows again"));
+            else Check(false, L.T("Entrada da bandeja do Vanguard não encontrada no Registro", "Vanguard tray entry not found in the registry"));
 
             if (res.ConfigOk && Status("vgc") != "Running" && VgkLoaded())
             {

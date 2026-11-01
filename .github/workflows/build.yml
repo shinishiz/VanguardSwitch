@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -20,11 +20,17 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Version from tag
+      # Tag builds take their version from the tag (v1.2.3 -> 1.2.3) and must match the csproj.
+      # Other builds use the version in the csproj.
+      - name: Version
         shell: pwsh
         run: |
-          $v = '1.0.0'
-          if ($env:GITHUB_REF -like 'refs/tags/v*') { $v = $env:GITHUB_REF_NAME.TrimStart('v') }
+          [xml]$proj = Get-Content src/VanguardSwitch.csproj
+          $v = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $tag = $env:GITHUB_REF_NAME.TrimStart('v')
+            if ($tag -ne $v) { Write-Error "Tag v$tag doesn't match <Version>$v</Version> in the csproj"; exit 1 }
+          }
           "VERSION=$v" >> $env:GITHUB_ENV
 
       - name: Build
@@ -44,11 +50,20 @@ jobs:
             out/VanguardSwitch.exe
             out/VanguardSwitch.exe.sha256
 
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # only this job can create the release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: VanguardSwitch
+
+      - uses: softprops/action-gh-release@v2
         with:
           files: |
-            out/VanguardSwitch.exe
-            out/VanguardSwitch.exe.sha256
+            VanguardSwitch.exe
+            VanguardSwitch.exe.sha256
           generate_release_notes: true
