@@ -131,7 +131,8 @@ issues found (fixed in v1.0.6) are in [TESTING.md](TESTING.md).
 | After a restart | Passed: driver loaded at boot, games worked. Also with `vgc` blocked at boot |
 | Update | Passed, 1.0.4 → 1.0.5 |
 | Screen scale | 100% passed. 125%, 150% and 200% not tested yet |
-| Not tested | Windows 11, English UI, *Riot default and restart* with the real restart, a driver that won't unload |
+| English UI | Only in the simulated tests (made-up data), which pass in English on GitHub Actions |
+| Not tested | Windows 11, *Riot default and restart* with the real restart, a driver that won't unload |
 
 `tests/Simulated` also checks the updater's refusals and the window's states with made-up data, without
 touching Vanguard. It runs on every build.
@@ -191,8 +192,8 @@ troca o arquivo e abre de novo. O app só acessa a rede pela API do GitHub e pel
 
 **Testes:** a v1.0.5 foi testada à mão em um PC com Windows 10 22H2 (escala 100%), Vanguard no modo
 tradicional, VALORANT e League of Legends: desligar mantendo o driver, desligamento completo (o aviso de
-VAN 57 apareceu e o erro aconteceu mesmo), reinício e atualização passaram. Escalas 125%, 150% e 200%,
-Windows 11 e a interface em inglês ainda não foram testados. Tabela na seção *Testing* acima e detalhes em
+VAN 57 apareceu e o erro aconteceu mesmo), reinício e atualização passaram. Escalas 125%, 150% e 200%
+e o Windows 11 ainda não foram testados, e a interface em inglês só nos testes simulados. Tabela na seção *Testing* acima e detalhes em
 [TESTING.md](TESTING.md) (em inglês).
 
 O programa não altera nenhum arquivo do Vanguard. Sem vínculo com a Riot Games.

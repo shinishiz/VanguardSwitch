@@ -92,7 +92,7 @@ as evidence, but the app's log and messages were never taken as proof on their o
 | 7.3 | Update v1.0.4 → v1.0.5 in a throwaway folder | Real | Passed |
 | 7.4 | Update with a missing/invalid/wrong checksum or missing file | Simulated | Passed |
 | 7.5 | Window state with Vanguard missing, `vgc` missing, unreadable status; restart text | Simulated | Passed |
-| 7.6 | English UI | | Not run |
+| 7.6 | English UI | Simulated (GitHub Actions) | Not run on real Vanguard; simulated checks pass in English |
 | 8 | Restart with `vgc` blocked, then Turn on (fixed build) | Real + Manual (tester), backed by logs | Passed (short sessions) |
 
 ## 1. Build and first start
@@ -352,9 +352,14 @@ tests/Simulated/bin/out/Simulated.exe <folder for screenshots>
 
 Exit code 0 means all passed.
 
-### 7.6 English UI — Not run
+### 7.6 English UI — Not run (partly covered by the simulated tests)
 
-Windows was in Portuguese, so only the Portuguese text was seen.
+Windows was in Portuguese, so only the Portuguese text was seen in the real tests.
+
+Since v1.0.6, GitHub Actions runs `tests/Simulated` on an English Windows runner at 100%, so those 11 checks
+also pass with the English text, and the drawn window and dialog (build artifact `simulated-screenshots`)
+show the English text fitting. That's made-up data, not the real Vanguard, and the runner has no Riot
+software installed.
 
 ## 8. Restart with `vgc` blocked, then Turn on
 
