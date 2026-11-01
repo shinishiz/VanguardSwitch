@@ -101,22 +101,32 @@ namespace VanguardSwitch
             string exe = ExePath;
             string fresh = exe + ".new", old = exe + ".old";
 
-            using (var c = Client())
+            // The app runs as admin, so never install a file that wasn't checked.
+            if (rel.HashUrl == null)
+                throw new Exception(L.T("A release não tem o arquivo .sha256, então a atualização não pode ser conferida.",
+                                        "The release has no .sha256 file, so the update can't be checked."));
+
+            try
             {
-                c.DownloadFile(rel.ExeUrl, fresh);
-                if (rel.HashUrl != null)
+                using (var c = Client())
                 {
                     string expected = c.DownloadString(rel.HashUrl).Trim().Split(' ', '\t')[0].ToLowerInvariant();
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(expected, "^[0-9a-f]{64}$"))
+                        throw new Exception(L.T("O arquivo .sha256 da release é inválido.", "The release's .sha256 file is invalid."));
+
+                    c.DownloadFile(rel.ExeUrl, fresh);
                     string actual;
                     using (var sha = SHA256.Create())
                     using (var f = File.OpenRead(fresh))
                         actual = string.Concat(sha.ComputeHash(f).Select(b => b.ToString("x2")));
                     if (actual != expected)
-                    {
-                        File.Delete(fresh);
                         throw new Exception(L.T("O arquivo baixado não bate com o SHA-256 da release.", "The downloaded file doesn't match the release's SHA-256."));
-                    }
                 }
+            }
+            catch
+            {
+                try { File.Delete(fresh); } catch { }
+                throw;
             }
 
             if (File.Exists(old)) File.Delete(old);

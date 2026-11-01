@@ -231,10 +231,19 @@ namespace VanguardSwitch
         {
             AppendLog(L.T("Aberto como administrador.", "Running as administrator."));
             ShowState(Theme.Dim, L.T("Lendo...", "Reading..."), L.T("Conferindo o estado do Vanguard.", "Checking Vanguard's state."), null);
-            var r = await Task.Run(Vg.GetReport);
-            if (r.VgkStart == 4 && !r.VgkLoaded) watch = Watch.Off;
-            else if (r.VgcStart == 4 && r.VgkStart <= 2) watch = Watch.Light;
-            Apply(r);
+            try
+            {
+                var r = await Task.Run(Vg.GetReport);
+                if (r.VgkStart == 4 && !r.VgkLoaded) watch = Watch.Off;
+                else if (r.VgcStart == 4 && r.VgkStart <= 2) watch = Watch.Light;
+                Apply(r);
+            }
+            catch (Exception ex)
+            {
+                Warn(L.T("Erro ao ler o estado: ", "Error reading the state: ") + ex.Message);
+                ShowState(Theme.Amber, L.T("Não deu para ler o estado", "Couldn't read the state"),
+                    L.T("O app vai tentar de novo em alguns segundos. Veja os Logs.", "The app will try again in a few seconds. See Logs."), null);
+            }
             timer.Start();
             CheckForUpdate();
         }

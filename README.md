@@ -81,15 +81,20 @@ step after you click. Text is in English or Portuguese, following your Windows l
 The driver didn't load when Windows started. Riot only accepts `vgk` if it loaded at boot, so starting it
 later doesn't work. Reboot once and keep *Keep the driver loaded* checked from then on.
 
-The window tells you before you open the game: the *Driver loaded at boot* row compares the time of
-Vanguard's own driver log (`Logs\vgk_*.log`) with the time Windows started. It only reads them.
+The *Driver loaded at boot* row tries to warn you before you open the game. It compares the time of
+Vanguard's own driver log (`Logs\vgk_*.log`) with the time Windows started, and also remembers when the
+app itself started or stopped the driver. It's an estimate, not Riot's own check: a changed system clock,
+missing logs or a new log format from Riot can fool it (it then shows *Unknown*), and it only catches this
+one cause of VAN 57, not all of them.
 
 ## Updates
 
 When it opens, the app asks GitHub for the latest release. If there's a newer one, it shows
-**Update** or **Close**. Update downloads the new `VanguardSwitch.exe` from the release, checks it against
-the release's SHA-256, replaces the old file and reopens. That request to `api.github.com` is the only
-network access the app makes.
+**Update** or **Close**. Update downloads the new `VanguardSwitch.exe` and its `.sha256` from the release,
+refuses to install if the checksum is missing or doesn't match, replaces the old file and reopens.
+
+The checksum only proves the file is the one published in the release; the exe isn't code-signed.
+Network access is limited to GitHub's API and GitHub-hosted release downloads.
 
 ## How it works
 
@@ -153,10 +158,13 @@ SmartScreen avisar, clique em **Mais informações → Executar assim mesmo**.
   "Ligar" funciona sem reiniciar.
 
 **Erro VAN 57:** o driver não carregou junto com o Windows. Reinicie o PC uma vez e deixe a opção marcada.
-A linha *Driver carregou no boot* avisa isso antes de abrir o jogo, comparando o horário do log do driver
-com o horário em que o Windows ligou.
+A linha *Driver carregou no boot* tenta avisar isso antes de abrir o jogo, comparando o horário do log do
+driver com o horário em que o Windows ligou. É uma estimativa, não a checagem da Riot: relógio alterado,
+log faltando ou mudança no formato dos logs podem enganar (aí aparece *Não dá para saber*), e ela só pega
+essa causa do VAN 57, não todas.
 
 **Atualizações:** ao abrir, o app confere no GitHub se saiu versão nova e mostra **Atualizar** ou
-**Fechar**. Atualizar baixa o exe da release, confere o SHA-256, troca o arquivo e abre de novo.
+**Fechar**. Atualizar baixa o exe e o `.sha256` da release, recusa instalar se o hash faltar ou não bater,
+troca o arquivo e abre de novo. O app só acessa a rede pela API do GitHub e pelos downloads das releases.
 
 O programa não altera nenhum arquivo do Vanguard. Sem vínculo com a Riot Games.
