@@ -2,7 +2,7 @@
 
 ## v1.0.6
 
-- Tested by hand on a real PC: see the *Testing* table in the README and [TESTING.md](TESTING.md).
+- Tested by hand on a real PC: see the *Testing* table in the README and [TESTING.md](https://github.com/shinishiz/VanguardSwitch/blob/main/TESTING.md).
 - Fixes from that session:
   - The "Restart the PC?" question after Turn on now says whether the driver was started just now or was
     already in memory (started after boot).
