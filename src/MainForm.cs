@@ -439,7 +439,8 @@ namespace VanguardSwitch
             try
             {
                 watch = Watch.None;
-                if (await Task.Run(Vg.RestoreDefault))
+                var res = await Task.Run(Vg.RestoreDefault);
+                if (res.Ok)
                 {
                     AppendLog(L.T("Reiniciando...", "Restarting..."));
                     Vg.Reboot("VanguardSwitch");
@@ -447,8 +448,10 @@ namespace VanguardSwitch
                 else
                 {
                     Warn(L.T("Não deu para restaurar o padrão.", "Couldn't restore the default."));
-                    Info(L.T("Algo deu errado", "Something went wrong"), L.T("Não deu para restaurar o padrão. O PC não foi reiniciado. Veja os logs.",
-                             "Couldn't restore the default. The PC was not restarted. See the logs."));
+                    string what = !res.ConfigOk
+                        ? L.T("Não deu para voltar o driver e o serviço a ligar com o Windows.", "Couldn't set the driver and service to start with Windows.")
+                        : L.T("O driver e o serviço voltaram ao padrão, mas não deu para pôr a bandeja de volta na inicialização.", "The driver and service are back to default, but the tray couldn't be added back to startup.");
+                    Info(L.T("Algo deu errado", "Something went wrong"), what + L.T("\n\nO PC não foi reiniciado. Veja os Logs.", "\n\nThe PC was not restarted. See the Logs."));
                 }
             }
             catch (Exception ex) { Warn("Erro/Error: " + ex.Message); }
